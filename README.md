@@ -1,6 +1,5 @@
-# Markdown Editor 
-
-Một trình soạn thảo Markdown trực tiếp (live editor)
+# Markdown Editor
+Một trình soạn thảo Markdown trực tiếp (live editor) — soạn thảo bên trái, xem kết quả ngay lập tức bên phải, không cần build hay cài đặt gì thêm.
 
 ---
 
@@ -8,7 +7,7 @@ Một trình soạn thảo Markdown trực tiếp (live editor)
 
 | | |
 |---|---|
-| **Tên** | Nguyen Thanh Dat|
+| **Tên** | Nguyen Thanh Dat |
 | **Quốc tịch** | Việt Nam 🇻🇳 |
 | **Nơi làm việc** | Nhật Bản 🇯🇵 |
 | **Vị trí** | IT Engineer |
@@ -84,6 +83,37 @@ Bấm nút **Cài đặt** ở thanh tiêu đề để mở bảng tuỳ chỉnh
   - Bấm **"Dùng theo theme"** để quay về màu mặc định của theme đang chọn.
   - Màu chữ sẽ **tự động điều chỉnh sáng/tối** theo màu nền được chọn để luôn đảm bảo đọc rõ.
 - Mọi cài đặt được **lưu tự động** và giữ nguyên cho lần mở sau, dùng nút **"Đặt lại mặc định"** nếu muốn quay về cấu hình gốc.
+
+### 5. Số dòng & vị trí con trỏ 
+- Khung soạn thảo hiển thị **cột số dòng** bên trái, số dòng đang có con trỏ được tô sáng bằng màu accent của theme.
+- **Status bar** ở cuối màn hình hiển thị:
+  - Bên trái: `Dòng X, Cột Y — Tổng N dòng`
+  - Bên phải: số từ · số ký tự · thời gian đọc ước tính (~200 từ/phút)
+- Khung soạn thảo không tự xuống dòng khi câu quá dài (giống code editor thật) — dòng dài sẽ cuộn ngang thay vì bị gãy dòng, giúp số dòng luôn khớp chính xác với nội dung gốc.
+
+### 6. Tự động lưu (Auto-save)
+- Mọi thay đổi trong khung soạn thảo (nội dung + tên file) được **tự động lưu vào trình duyệt** sau khoảng 0.7 giây ngừng gõ — không cần bấm nút nào.
+- Đóng tab hoặc tắt trình duyệt rồi mở lại `index.html`, nội dung và tên file sẽ **tự động được khôi phục** đúng như lúc đóng.
+- Trạng thái lưu hiển thị ở góc trên bên trái (cạnh tên file): `Đang gõ...` → `Đã cập nhật` → `Đã lưu tự động`.
+- ⚠️ Đây là bộ nhớ **riêng của trình duyệt trên máy đang dùng** — không đồng bộ giữa các máy/trình duyệt khác nhau. Vẫn nên bấm **Tải xuống (.md)** định kỳ nếu cần giữ file lâu dài hoặc mang sang máy khác.
+
+### 7. Copy & Xuất file
+Hai nút dropdown ở thanh tiêu đề:
+
+**📋 Copy**
+| Lựa chọn | Công dụng |
+|---|---|
+| Sao chép Markdown | Copy nguyên văn nội dung `.md` đang soạn vào clipboard |
+| Sao chép HTML (đã render) | Copy phần đã render (có định dạng: heading, bảng, in đậm...) — dán thẳng vào Notion, Confluence, Gmail, Word... vẫn giữ định dạng |
+
+**⬇️ Tải xuống**
+| Lựa chọn | Công dụng |
+|---|---|
+| Tải Markdown (.md) | Như trước — tải file `.md` gốc |
+| Tải HTML (.html) | Xuất file HTML độc lập, tự chứa CSS — mở được bằng bất kỳ trình duyệt nào, không cần phần mềm đọc Markdown |
+| Xuất PDF (in để lưu) | Mở cửa sổ in của trình duyệt với nội dung đã định dạng sẵn — chọn máy in **"Save as PDF" / "Lưu dưới dạng PDF"** để xuất file PDF |
+
+> 💡 Nếu trình duyệt chặn cửa sổ pop-up khi bấm "Xuất PDF", hãy cho phép pop-up cho trang này rồi thử lại.
 
 ---
 

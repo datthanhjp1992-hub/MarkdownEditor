@@ -364,6 +364,38 @@
   }
   .import-btn:hover, .export-btn:hover{border-color:var(--accent); color:var(--accent);}
 
+  /* ===== Dropdown menu (Copy / Tải xuống) ===== */
+  .dropdown{position:relative;}
+  .caret{opacity:.6; margin-left:-2px;}
+  .dropdown-menu{
+    position:absolute;
+    top:calc(100% + 6px);
+    right:0;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius-md);
+    box-shadow:0 16px 40px rgba(0,0,0,.35);
+    min-width:210px;
+    padding:5px;
+    display:none;
+    z-index:60;
+  }
+  .dropdown-menu.show{display:block;}
+  .dropdown-item{
+    display:block;
+    width:100%;
+    text-align:left;
+    background:transparent;
+    border:none;
+    color:var(--text);
+    padding:8px 10px;
+    font-size:13px;
+    border-radius:var(--radius-sm);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .dropdown-item:hover{background:var(--surface-hover);}
+
   .toggle-group{
     display:flex;
     background:var(--surface);
@@ -452,6 +484,40 @@
     background:var(--surface-strong);
   }
 
+  /* ===== Cột số dòng (giống HackMD) ===== */
+  .editor-wrap{
+    flex:1;
+    display:flex;
+    min-height:0;
+    position:relative;
+    overflow:hidden;
+  }
+  .line-numbers{
+    flex-shrink:0;
+    width:48px;
+    overflow:hidden;
+    position:relative;
+    background:var(--editor-bg, var(--code-bg));
+    border-right:1px solid var(--border);
+  }
+  .line-numbers-inner{
+    position:absolute;
+    top:0; left:0; right:0;
+    padding:16px 10px 16px 0;
+    font-family:var(--editor-font);
+    font-size:var(--editor-font-size);
+    line-height:1.65;
+  }
+  .line-num-row{
+    text-align:right;
+    color:var(--line-num);
+    padding-right:4px;
+  }
+  .line-num-row.active{
+    color:var(--accent);
+    font-weight:600;
+  }
+
   #editor{
     flex:1;
     width:100%;
@@ -537,8 +603,25 @@
   }
   .frame.dragging .dropzone-overlay{display:flex;}
 
+  /* ===== Status bar dưới cùng (số dòng/cột, đếm từ, thời gian đọc) ===== */
+  .statusbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    padding:5px 16px;
+    font-size:11.5px;
+    color:var(--muted);
+    background:var(--surface-strong);
+    border-top:1px solid var(--border);
+    flex-wrap:wrap;
+    font-family:"SF Mono",Consolas,monospace;
+  }
+
   @media (max-width:720px){
     .workspace{grid-template-columns:1fr !important; overflow-y:auto;}
     .editor-pane{border-right:none; border-bottom:1px solid var(--border);}
-    #editor{min-height:45vh;}
+    .editor-wrap{min-height:45vh;}
+    .line-numbers{width:36px;}
+    .statusbar{font-size:10.5px;}
   }

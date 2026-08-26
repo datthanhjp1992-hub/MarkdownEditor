@@ -3,6 +3,9 @@ const previewContent = document.getElementById('previewContent');
 const frame = document.getElementById('frame');
 const statusText = document.getElementById('statusText');
 const fileNameText = document.getElementById('fileNameText');
+const lineNumbersInner = document.getElementById('lineNumbersInner');
+const cursorStatusEl = document.getElementById('cursorStatus');
+const docStatsEl = document.getElementById('docStats');
 
 // Bật breaks:true để giống HackMD -- 1 dấu xuống dòng đơn trong đoạn văn/list item
 // sẽ giữ nguyên thành <br> thay vì bị CommonMark mặc định gộp lại thành khoảng trắng.
@@ -14,11 +17,13 @@ const defaultContent = `# Markdown Editor 👋
 
 ## Phần 1 — Giới thiệu
 
-Đây là một **trình soạn thảo Markdown trực tiếp** (live editor), lấy cảm hứng từ HackMD. Gõ nội dung ở khung bên trái, kết quả sẽ được render và hiển thị ngay lập tức ở khung bên phải — không cần bấm nút "xem trước" hay tải lại trang.
+Đây là một **trình soạn thảo Markdown trực tiếp** (live editor). Gõ nội dung ở khung bên trái, kết quả sẽ được render và hiển thị ngay lập tức ở khung bên phải — không cần bấm nút "xem trước" hay tải lại trang.
 
 Editor hỗ trợ 3 chế độ xem: **Edit** (chỉ soạn thảo, toàn màn hình), **Split** (soạn thảo song song xem trước — đang bật), và **Preview** (chỉ xem kết quả). Bạn có thể chuyển đổi qua nút ở góc trên bên phải.
 
-Ngoài ra bạn có thể **Import** file \`.md\` có sẵn (kéo-thả hoặc chọn file), **Tải xuống** nội dung đang soạn thành file mới, bấm vào tên file ở góc trên bên trái để **đổi tên**, hoặc dùng nút **Clear** trên thanh công cụ để xoá sạch và bắt đầu lại từ đầu.
+Ngoài ra bạn có thể **Import** file \`.md\` có sẵn (kéo-thả hoặc chọn file), **Tải xuống** nội dung đang soạn thành file mới (.md / .html / PDF), **Copy** Markdown hoặc HTML đã render vào clipboard, bấm vào tên file ở góc trên bên trái để **đổi tên**, hoặc dùng nút **Clear** trên thanh công cụ để xoá sạch và bắt đầu lại từ đầu.
+
+Nội dung được **tự động lưu** vào trình duyệt khi bạn gõ — đóng tab rồi mở lại vẫn còn nguyên.
 
 ---
 
@@ -90,23 +95,120 @@ function render() {
   previewContent.innerHTML = marked.parse(editor.value);
 }
 
+// ---- Cột số dòng (giống HackMD) ----
+// Chỉ vẽ lại toàn bộ danh sách số khi số dòng thay đổi, tránh thao tác DOM thừa mỗi lần gõ 1 ký tự.
+let lastLineCount = 0;
+function updateLineNumbers() {
+  const lineCount = editor.value.split('\n').length;
+  if (lineCount !== lastLineCount) {
+    let html = '';
+    for (let i = 1; i <= lineCount; i++) html += `<div class="line-num-row">${i}</div>`;
+    lineNumbersInner.innerHTML = html;
+    lastLineCount = lineCount;
+  }
+  highlightCurrentLine();
+}
+
+// Đánh dấu số dòng đang có con trỏ (giống thanh gutter của các code editor)
+function highlightCurrentLine() {
+  const pos = editor.selectionStart;
+  const currentLine = editor.value.slice(0, pos).split('\n').length;
+  const prevActive = lineNumbersInner.querySelector('.line-num-row.active');
+  if (prevActive) prevActive.classList.remove('active');
+  const rowEl = lineNumbersInner.children[currentLine - 1];
+  if (rowEl) rowEl.classList.add('active');
+}
+
+// Cuộn cột số dòng đồng bộ với cuộn dọc của khung soạn thảo
+editor.addEventListener('scroll', () => {
+  lineNumbersInner.style.transform = `translateY(${-editor.scrollTop}px)`;
+});
+
+// ---- Vị trí con trỏ: Dòng / Cột / Tổng số dòng ----
+function updateCursorStatus() {
+  const pos = editor.selectionStart;
+  const before = editor.value.slice(0, pos);
+  const lines = before.split('\n');
+  const line = lines.length;
+  const col = lines[lines.length - 1].length + 1;
+  const totalLines = editor.value.split('\n').length;
+  cursorStatusEl.textContent = `Dòng ${line}, Cột ${col} — Tổng ${totalLines} dòng`;
+}
+editor.addEventListener('click', updateCursorStatus);
+editor.addEventListener('keyup', updateCursorStatus);
+
+// ---- Đếm từ / ký tự / thời gian đọc ước tính ----
+function updateDocStats() {
+  const text = editor.value;
+  const trimmed = text.trim();
+  const words = trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
+  const chars = text.length;
+  const readingMinutes = Math.max(1, Math.round(words / 200));
+  docStatsEl.textContent = `${words} từ · ${chars} ký tự · ~${readingMinutes} phút đọc`;
+}
+
+// ---- Tự động lưu nháp vào trình duyệt (window.storage) ----
+const DRAFT_KEY = 'draft:content';
+let autosaveTimer = null;
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(async () => {
+    try {
+      await window.storage.set(DRAFT_KEY, JSON.stringify({
+        content: editor.value,
+        fileName: fileNameText.textContent,
+        savedAt: Date.now(),
+      }));
+      statusText.textContent = 'Đã lưu tự động';
+    } catch (err) {
+      statusText.textContent = 'Lỗi lưu tự động';
+      console.error('Không tự động lưu được:', err);
+    }
+  }, 700);
+}
+
 // Debounce nhẹ để không render lại quá dày khi gõ nhanh
 let renderTimer = null;
 function scheduleRender() {
+  updateLineNumbers();
+  updateCursorStatus();
   statusText.textContent = 'Đang gõ...';
   clearTimeout(renderTimer);
   renderTimer = setTimeout(() => {
     render();
+    updateDocStats();
     statusText.textContent = 'Đã cập nhật';
   }, 150);
+  scheduleAutosave();
 }
 
 editor.addEventListener('input', scheduleRender);
 
-// Khởi tạo nội dung mặc định
-editor.value = defaultContent;
-render();
-statusText.textContent = 'Đã cập nhật';
+// ---- Khởi tạo: khôi phục bản nháp đã tự động lưu (nếu có), hoặc dùng nội dung mặc định ----
+async function initEditor() {
+  let restored = false;
+  try {
+    const result = await window.storage.get(DRAFT_KEY);
+    if (result && result.value) {
+      const draft = JSON.parse(result.value);
+      if (draft && typeof draft.content === 'string' && draft.content.length > 0) {
+        editor.value = draft.content;
+        if (draft.fileName) fileNameText.textContent = draft.fileName;
+        restored = true;
+      }
+    }
+  } catch (err) {
+    // Chưa có bản nháp nào được lưu trước đó -> dùng nội dung mặc định, không cần báo lỗi
+  }
+  if (!restored) editor.value = defaultContent;
+
+  updateLineNumbers();
+  updateCursorStatus();
+  updateDocStats();
+  render();
+  statusText.textContent = restored ? 'Đã khôi phục bản nháp' : 'Đã cập nhật';
+}
+initEditor();
 
 // ---- Chế độ hiển thị: Edit / Split / Preview ----
 const btnEdit = document.getElementById('btnEdit');
@@ -136,7 +238,11 @@ function loadMarkdownFile(file) {
   reader.onload = (e) => {
     editor.value = e.target.result;
     fileNameText.textContent = file.name;
+    updateLineNumbers();
+    updateCursorStatus();
     render();
+    updateDocStats();
+    scheduleAutosave();
     statusText.textContent = 'Đã nhập file';
   };
   reader.onerror = () => alert('Không đọc được file. Vui lòng dùng file .md hoặc .txt.');
@@ -381,6 +487,7 @@ function commitRenameFile() {
   if (newName) fileNameText.textContent = newName;
   fileNameInput.style.display = 'none';
   fileNameText.style.display = '';
+  scheduleAutosave();
 }
 fileNameText.addEventListener('click', startRenameFile);
 fileNameText.addEventListener('keydown', (e) => {
@@ -402,7 +509,11 @@ document.getElementById('clearCancel').addEventListener('click', () => {
 });
 document.getElementById('clearConfirm').addEventListener('click', () => {
   editor.value = '';
+  updateLineNumbers();
+  updateCursorStatus();
   render();
+  updateDocStats();
+  scheduleAutosave();
   statusText.textContent = 'Đã xoá toàn bộ';
   clearModal.classList.remove('show');
   editor.focus();
@@ -641,15 +752,137 @@ settingsReset.addEventListener('click', () => {
   saveSettings();
 });
 
-// ---- Export / Tải xuống ----
-document.getElementById('btnExport').addEventListener('click', () => {
-  const blob = new Blob([editor.value], { type: 'text/markdown;charset=utf-8' });
+// ---- Dropdown menu dùng chung cho Copy & Tải xuống ----
+function setupDropdown(rootId, toggleId, menuId) {
+  const root = document.getElementById(rootId);
+  const toggle = document.getElementById(toggleId);
+  const menu = document.getElementById(menuId);
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willShow = !menu.classList.contains('show');
+    document.querySelectorAll('.dropdown-menu.show').forEach(m => m.classList.remove('show'));
+    if (willShow) menu.classList.add('show');
+  });
+  return { root, menu };
+}
+const copyDropdown = setupDropdown('copyDropdown', 'btnCopyToggle', 'copyMenu');
+const exportDropdown = setupDropdown('exportDropdown', 'btnExportToggle', 'exportMenu');
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.dropdown-menu.show').forEach(m => m.classList.remove('show'));
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.dropdown-menu.show').forEach(m => m.classList.remove('show'));
+  }
+});
+
+// Hiện tạm thông báo trạng thái ở góc trên (VD "Đã copy Markdown"), sau đó trả lại trạng thái lưu bình thường
+function flashStatus(message) {
+  statusText.textContent = message;
+  setTimeout(() => { statusText.textContent = 'Đã lưu tự động'; }, 1800);
+}
+
+// ---- Copy Markdown / Copy HTML vào clipboard ----
+document.getElementById('copyMarkdownBtn').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(editor.value);
+    flashStatus('Đã copy Markdown');
+  } catch (err) {
+    flashStatus('Không copy được — trình duyệt chặn clipboard');
+  }
+});
+
+document.getElementById('copyHtmlBtn').addEventListener('click', async () => {
+  const htmlString = previewContent.innerHTML;
+  try {
+    if (window.ClipboardItem) {
+      // Copy cả HTML (để dán có định dạng vào Notion/Confluence/Word) lẫn text thường (để dán vào nơi không hỗ trợ HTML)
+      const item = new ClipboardItem({
+        'text/html': new Blob([htmlString], { type: 'text/html' }),
+        'text/plain': new Blob([previewContent.innerText], { type: 'text/plain' }),
+      });
+      await navigator.clipboard.write([item]);
+    } else {
+      await navigator.clipboard.writeText(htmlString);
+    }
+    flashStatus('Đã copy HTML');
+  } catch (err) {
+    flashStatus('Không copy được — trình duyệt chặn clipboard');
+  }
+});
+
+// ---- Tải xuống: Markdown (.md) / HTML (.html) / PDF (qua hộp thoại in) ----
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function getBaseFileName() {
+  return fileNameText.textContent.replace(/\.(md|markdown|html?)$/i, '');
+}
+
+function downloadBlob(content, mimeType, filename) {
+  const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = fileNameText.textContent.endsWith('.md') ? fileNameText.textContent : fileNameText.textContent + '.md';
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// Dựng 1 file HTML độc lập (tự chứa CSS, không phụ thuộc theme đang chọn) để gửi cho người không có Markdown viewer
+function buildStandaloneHtml() {
+  const title = getBaseFileName();
+  return `<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(title)}</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;line-height:1.65;color:#1f2328;background:#fff;max-width:820px;margin:40px auto;padding:0 24px;}
+  h1{font-size:1.9em;margin-bottom:.3em;}
+  h2{font-size:1.4em;margin-top:1.6em;border-bottom:1px solid #e1e4e8;padding-bottom:.3em;}
+  h3{font-size:1.15em;margin-top:1.3em;}
+  pre{background:#f6f8fa;border:1px solid #e1e4e8;border-radius:6px;padding:12px 14px;overflow-x:auto;font-size:13px;}
+  code{font-family:"SF Mono",Consolas,monospace;}
+  table{border-collapse:collapse;width:100%;margin:12px 0;}
+  th,td{border:1px solid #e1e4e8;padding:6px 10px;font-size:13px;}
+  blockquote{border-left:3px solid #58a6ff;margin:0;padding:2px 14px;color:#57606a;}
+  img{max-width:100%;}
+  @media print{ body{margin:0;padding:16px;} }
+</style>
+</head>
+<body>
+${previewContent.innerHTML}
+</body>
+</html>`;
+}
+
+document.getElementById('exportMdBtn').addEventListener('click', () => {
+  const filename = fileNameText.textContent.endsWith('.md') ? fileNameText.textContent : fileNameText.textContent + '.md';
+  downloadBlob(editor.value, 'text/markdown;charset=utf-8', filename);
+});
+
+document.getElementById('exportHtmlBtn').addEventListener('click', () => {
+  downloadBlob(buildStandaloneHtml(), 'text/html;charset=utf-8', getBaseFileName() + '.html');
+});
+
+document.getElementById('exportPdfBtn').addEventListener('click', () => {
+  const printWin = window.open('', '_blank');
+  if (!printWin) {
+    alert('Trình duyệt đã chặn cửa sổ pop-up. Vui lòng cho phép pop-up cho trang này để xuất PDF.');
+    return;
+  }
+  printWin.document.open();
+  printWin.document.write(buildStandaloneHtml());
+  printWin.document.close();
+  // Đợi nội dung/ảnh load xong rồi mới mở hộp thoại in -> trong hộp thoại chọn "Save as PDF" để lưu file
+  printWin.onload = () => {
+    printWin.focus();
+    printWin.print();
+  };
 });

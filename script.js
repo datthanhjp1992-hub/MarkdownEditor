@@ -152,9 +152,9 @@ const DRAFT_KEY = 'draft:content';
 let autosaveTimer = null;
 function scheduleAutosave() {
   clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(async () => {
+  autosaveTimer = setTimeout(() => {
     try {
-      await window.storage.set(DRAFT_KEY, JSON.stringify({
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
         content: editor.value,
         fileName: fileNameText.textContent,
         savedAt: Date.now(),
@@ -188,9 +188,9 @@ editor.addEventListener('input', scheduleRender);
 async function initEditor() {
   let restored = false;
   try {
-    const result = await window.storage.get(DRAFT_KEY);
-    if (result && result.value) {
-      const draft = JSON.parse(result.value);
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (raw) {
+      const draft = JSON.parse(raw);
       if (draft && typeof draft.content === 'string' && draft.content.length > 0) {
         editor.value = draft.content;
         if (draft.fileName) fileNameText.textContent = draft.fileName;
@@ -671,20 +671,20 @@ function applySettings(s) {
 }
 
 // Lưu settings hiện tại (lưu riêng cho từng người dùng, không chia sẻ)
-async function saveSettings() {
+function saveSettings() {
   try {
-    await window.storage.set('settings:appearance', JSON.stringify(currentSettings));
+    localStorage.setItem('settings:appearance', JSON.stringify(currentSettings));
   } catch (err) {
     console.error('Không lưu được cài đặt giao diện:', err);
   }
 }
 
 // Đọc settings đã lưu từ trước (nếu có) khi mở lại trang
-async function loadSettings() {
+function loadSettings() {
   try {
-    const result = await window.storage.get('settings:appearance');
-    if (result && result.value) {
-      currentSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(result.value) };
+    const raw = localStorage.getItem('settings:appearance');
+    if (raw) {
+      currentSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
     }
   } catch (err) {
     // Chưa từng lưu cài đặt trước đó -> dùng mặc định, không cần báo lỗi

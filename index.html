@@ -5,310 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Markdown Editor - HackMD style</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
-<style>
-  :root{
-    --bg:#0d1117;
-    --panel:#161b22;
-    --border:#30363d;
-    --text:#e6edf3;
-    --muted:#8b949e;
-    --accent:#58a6ff;
-    --code-bg:#0d1117;
-    --line-num:#484f58;
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
-    background:#1e2229;
-    color:var(--text);
-    min-height:100vh;
-  }
-  .frame{
-    width:100%;
-    height:100vh;
-    background:var(--panel);
-    border:none;
-    border-radius:0;
-    overflow:hidden;
-    box-shadow:none;
-    position:relative;
-    display:flex;
-    flex-direction:column;
-  }
-  .titlebar{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:14px 18px;
-    border-bottom:1px solid var(--border);
-    flex-wrap:wrap;
-    gap:10px;
-  }
-  .filename{
-    font-weight:600;
-    font-size:15px;
-    display:flex;
-    align-items:center;
-    gap:8px;
-  }
-  .filename svg{opacity:.6; flex-shrink:0;}
-  #fileNameText{
-    cursor:pointer;
-    border-radius:4px;
-    padding:2px 6px;
-    margin:-2px -6px;
-    transition:background .12s;
-  }
-  #fileNameText:hover, #fileNameText:focus{
-    background:#21262d;
-    outline:none;
-  }
-  .filename-input{
-    background:#0d1117;
-    border:1px solid var(--accent);
-    color:var(--text);
-    font-weight:600;
-    font-size:15px;
-    font-family:inherit;
-    border-radius:4px;
-    padding:2px 6px;
-    width:180px;
-    outline:none;
-  }
-  .clear-btn{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    border:1px solid var(--border);
-    background:#0d1117;
-    color:var(--muted);
-    font-size:13px;
-    padding:6px 12px;
-    border-radius:8px;
-    cursor:pointer;
-    transition:border-color .15s, color .15s;
-    white-space:nowrap;
-  }
-  .clear-btn:hover{border-color:#f85149; color:#f85149;}
-
-  /* ===== Confirm modal ===== */
-  .modal-overlay{
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.55);
-    display:none;
-    align-items:center;
-    justify-content:center;
-    z-index:100;
-  }
-  .modal-overlay.show{display:flex;}
-  .modal-box{
-    background:var(--panel);
-    border:1px solid var(--border);
-    border-radius:10px;
-    padding:20px 22px;
-    width:320px;
-    box-shadow:0 20px 60px rgba(0,0,0,.5);
-  }
-  .modal-box h3{margin:0 0 8px; font-size:15px;}
-  .modal-box p{margin:0 0 18px; font-size:13px; color:var(--muted); line-height:1.5;}
-  .modal-actions{display:flex; justify-content:flex-end; gap:8px;}
-  .modal-btn{
-    border:none;
-    border-radius:6px;
-    padding:7px 14px;
-    font-size:13px;
-    cursor:pointer;
-  }
-  .modal-btn.cancel{background:#21262d; color:var(--text);}
-  .modal-btn.cancel:hover{background:#2d333b;}
-  .modal-btn.confirm{background:#f85149; color:#fff;}
-  .modal-btn.confirm:hover{background:#e5433b;}
-  .status{
-    font-size:12px;
-    color:var(--muted);
-    font-weight:400;
-    margin-left:8px;
-  }
-  .controls{
-    display:flex;
-    align-items:center;
-    gap:8px;
-  }
-  .import-btn, .export-btn{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    border:1px solid var(--border);
-    background:#0d1117;
-    color:var(--muted);
-    font-size:13px;
-    padding:6px 12px;
-    border-radius:8px;
-    cursor:pointer;
-    transition:border-color .15s, color .15s;
-    white-space:nowrap;
-  }
-  .import-btn:hover, .export-btn:hover{border-color:var(--accent); color:var(--accent);}
-
-  .toggle-group{
-    display:flex;
-    background:#0d1117;
-    border:1px solid var(--border);
-    border-radius:8px;
-    padding:2px;
-  }
-  .toggle-btn{
-    border:none;
-    background:transparent;
-    color:var(--muted);
-    padding:6px 12px;
-    font-size:13px;
-    border-radius:6px;
-    cursor:pointer;
-    transition:background .15s, color .15s;
-  }
-  .toggle-btn.active{background:#21262d; color:var(--accent);}
-  .toggle-btn:hover{color:var(--text);}
-
-  /* ===== Formatting toolbar ===== */
-  .toolbar{
-    display:flex;
-    align-items:center;
-    gap:2px;
-    padding:6px 12px;
-    background:#10141a;
-    border-bottom:1px solid var(--border);
-    flex-wrap:wrap;
-  }
-  .tb-btn{
-    border:none;
-    background:transparent;
-    color:var(--muted);
-    width:30px;
-    height:30px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    border-radius:6px;
-    cursor:pointer;
-    font-size:13px;
-    font-weight:600;
-    font-family:"SF Mono",Consolas,monospace;
-    transition:background .12s, color .12s;
-  }
-  .tb-btn:hover{background:#21262d; color:var(--text);}
-  .tb-btn:active{background:#2d333b;}
-  .tb-btn svg{width:16px; height:16px;}
-  .tb-sep{
-    width:1px;
-    height:20px;
-    background:var(--border);
-    margin:0 6px;
-    flex-shrink:0;
-  }
-
-  /* ===== Editor / Preview layout ===== */
-  .workspace{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    flex:1;
-    min-height:0;
-  }
-  .frame.mode-edit .workspace{grid-template-columns:1fr;}
-  .frame.mode-edit .preview-pane{display:none;}
-  .frame.mode-preview .workspace{grid-template-columns:1fr;}
-  .frame.mode-preview .editor-pane{display:none;}
-
-  .editor-pane{
-    border-right:1px solid var(--border);
-    display:flex;
-    flex-direction:column;
-    min-width:0;
-    min-height:0;
-  }
-  .frame.mode-edit .editor-pane{border-right:none;}
-
-  .pane-label{
-    font-size:11px;
-    text-transform:uppercase;
-    letter-spacing:.05em;
-    color:var(--muted);
-    padding:8px 16px;
-    border-bottom:1px solid var(--border);
-    background:#10141a;
-  }
-
-  #editor{
-    flex:1;
-    width:100%;
-    resize:none;
-    border:none;
-    outline:none;
-    background:var(--code-bg);
-    color:#c9d1d9;
-    font-family:"SF Mono",Consolas,"Courier New",monospace;
-    font-size:13.5px;
-    line-height:1.65;
-    padding:16px 18px;
-    tab-size:2;
-  }
-
-  .preview-pane{
-    display:flex;
-    flex-direction:column;
-    min-width:0;
-    min-height:0;
-    overflow:hidden;
-  }
-  #previewContent{
-    flex:1;
-    overflow-y:auto;
-    padding:18px 24px;
-    line-height:1.65;
-    font-size:15px;
-  }
-  #previewContent h1{font-size:24px; margin-bottom:6px;}
-  #previewContent h2{font-size:18px; margin-top:24px; border-bottom:1px solid var(--border); padding-bottom:6px;}
-  #previewContent p{color:#c9d1d9;}
-  #previewContent pre{
-    background:#0a0d12;
-    border:1px solid var(--border);
-    border-radius:8px;
-    padding:12px 14px;
-    overflow-x:auto;
-    font-size:13px;
-  }
-  #previewContent code{font-family:"SF Mono",Consolas,monospace;}
-  #previewContent table{border-collapse:collapse; width:100%; margin:12px 0;}
-  #previewContent th, #previewContent td{border:1px solid var(--border); padding:6px 10px; font-size:13px;}
-  #previewContent blockquote{border-left:3px solid var(--accent); margin:0; padding:2px 14px; color:var(--muted);}
-  #previewContent img{max-width:100%;}
-
-  .dropzone-overlay{
-    position:absolute;
-    inset:0;
-    background:rgba(13,17,23,.92);
-    border:2px dashed var(--accent);
-    border-radius:12px;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    color:var(--accent);
-    font-size:15px;
-    font-weight:500;
-    z-index:10;
-    pointer-events:none;
-  }
-  .frame.dragging .dropzone-overlay{display:flex;}
-
-  @media (max-width:720px){
-    .workspace{grid-template-columns:1fr !important; overflow-y:auto;}
-    .editor-pane{border-right:none; border-bottom:1px solid var(--border);}
-    #editor{min-height:45vh;}
-  }
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Source+Code+Pro:wght@400;500&family=Merriweather:wght@400;700&family=Be+Vietnam+Pro:wght@500;600;700&family=Poppins:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -330,6 +29,14 @@
         Tải xuống
       </button>
       <input type="file" id="fileInput" accept=".md,.markdown,.txt" style="display:none;">
+      <button class="export-btn" id="btnSettings" title="Cài đặt giao diện">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+          <line x1="2" y1="4" x2="14" y2="4"/><circle cx="10" cy="4" r="1.4" fill="currentColor" stroke="none"/>
+          <line x1="2" y1="8" x2="14" y2="8"/><circle cx="5" cy="8" r="1.4" fill="currentColor" stroke="none"/>
+          <line x1="2" y1="12" x2="14" y2="12"/><circle cx="11" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+        </svg>
+        Cài đặt
+      </button>
       <div class="toggle-group">
         <button class="toggle-btn" id="btnEdit" title="Chỉ soạn thảo">Edit</button>
         <button class="toggle-btn active" id="btnSplit" title="Soạn thảo + Xem trước">Split</button>
@@ -396,6 +103,96 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-box settings-box">
+      <h3>Cài đặt giao diện</h3>
+
+      <div class="settings-group">
+        <span class="settings-label">Giao diện màu (Theme)</span>
+        <div class="theme-options">
+          <button type="button" class="theme-option" data-theme="dark">
+            <div class="theme-swatch" style="background:linear-gradient(135deg,#161b22 55%,#58a6ff 55%);"></div>Tối
+          </button>
+          <button type="button" class="theme-option" data-theme="light">
+            <div class="theme-swatch" style="background:linear-gradient(135deg,#fbfbfa 55%,#2563eb 55%);"></div>Sáng
+          </button>
+          <button type="button" class="theme-option" data-theme="sepia">
+            <div class="theme-swatch" style="background:linear-gradient(135deg,#f4ecd8 55%,#b5651d 55%);"></div>Ấm áp
+          </button>
+          <button type="button" class="theme-option" data-theme="mist">
+            <div class="theme-swatch" style="background:linear-gradient(135deg,#eef2f5 55%,#3f8f9c 55%);"></div>Sương Sớm
+          </button>
+          <button type="button" class="theme-option" data-theme="matcha">
+            <div class="theme-swatch" style="background:linear-gradient(135deg,#f0ece0 55%,#5f8d4e 55%);"></div>Trà Xanh
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <span class="settings-label">Phông chữ khung soạn thảo</span>
+        <select class="settings-select" id="selEditorFont">
+          <option value='"SF Mono",Consolas,"Courier New",monospace'>Mặc định (SF Mono)</option>
+          <option value='"Fira Code",Consolas,monospace'>Fira Code</option>
+          <option value='"JetBrains Mono",Consolas,monospace'>JetBrains Mono</option>
+          <option value='"Source Code Pro",Consolas,monospace'>Source Code Pro</option>
+          <option value='Consolas,"Courier New",monospace'>Consolas</option>
+        </select>
+      </div>
+
+      <div class="settings-group">
+        <span class="settings-label">Cỡ chữ khung soạn thảo</span>
+        <select class="settings-select" id="selEditorSize">
+          <option value="12px">Nhỏ (12px)</option>
+          <option value="13.5px">Vừa (13.5px)</option>
+          <option value="15px">Lớn (15px)</option>
+          <option value="17px">Rất lớn (17px)</option>
+        </select>
+      </div>
+
+      <div class="settings-group">
+        <span class="settings-label">Phông chữ bản xem trước</span>
+        <select class="settings-select" id="selPreviewFont">
+          <option value='-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif'>Mặc định (Sans-serif)</option>
+          <option value='"Merriweather",Georgia,serif'>Merriweather (Serif)</option>
+          <option value='"Source Code Pro",Consolas,monospace'>Monospace</option>
+        </select>
+      </div>
+
+      <div class="settings-group">
+        <span class="settings-label">Cỡ chữ bản xem trước</span>
+        <select class="settings-select" id="selPreviewSize">
+          <option value="14px">Nhỏ (14px)</option>
+          <option value="15px">Vừa (15px)</option>
+          <option value="17px">Lớn (17px)</option>
+          <option value="19px">Rất lớn (19px)</option>
+        </select>
+      </div>
+
+      <div class="settings-group">
+        <span class="settings-label">Màu nền khung soạn thảo</span>
+        <div class="color-row">
+          <input type="color" id="editorBgColor" title="Chọn màu nền riêng cho khung soạn thảo">
+          <button type="button" class="color-reset-btn" id="editorBgReset">Dùng theo theme</button>
+        </div>
+        <div class="color-suggestions" id="editorBgSuggestions"></div>
+      </div>
+
+      <div class="settings-group">
+        <span class="settings-label">Màu nền bản xem trước</span>
+        <div class="color-row">
+          <input type="color" id="previewBgColor" title="Chọn màu nền riêng cho bản xem trước">
+          <button type="button" class="color-reset-btn" id="previewBgReset">Dùng theo theme</button>
+        </div>
+        <div class="color-suggestions" id="previewBgSuggestions"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="settings-reset" id="settingsReset">Đặt lại mặc định</button>
+        <button class="modal-btn cancel" id="settingsClose">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <div class="workspace">
     <div class="editor-pane">
       <div class="pane-label">Markdown</div>
@@ -414,439 +211,7 @@
   <div class="dropzone-overlay" id="dropzone">Thả file .md vào đây để mở</div>
 </div>
 
-<script>
-const editor = document.getElementById('editor');
-const previewContent = document.getElementById('previewContent');
-const frame = document.getElementById('frame');
-const statusText = document.getElementById('statusText');
-const fileNameText = document.getElementById('fileNameText');
-
-// Bật breaks:true để giống HackMD -- 1 dấu xuống dòng đơn trong đoạn văn/list item
-// sẽ giữ nguyên thành <br> thay vì bị CommonMark mặc định gộp lại thành khoảng trắng.
-marked.setOptions({ breaks: true });
-
-const defaultContent = `# Markdown Editor 👋
-
----
-
-## Phần 1 — Giới thiệu
-
-Đây là một **trình soạn thảo Markdown trực tiếp** (live editor), lấy cảm hứng từ HackMD. Gõ nội dung ở khung bên trái, kết quả sẽ được render và hiển thị ngay lập tức ở khung bên phải — không cần bấm nút "xem trước" hay tải lại trang.
-
-Editor hỗ trợ 3 chế độ xem: **Edit** (chỉ soạn thảo, toàn màn hình), **Split** (soạn thảo song song xem trước — đang bật), và **Preview** (chỉ xem kết quả). Bạn có thể chuyển đổi qua nút ở góc trên bên phải.
-
-Ngoài ra bạn có thể **Import** file \`.md\` có sẵn (kéo-thả hoặc chọn file), **Tải xuống** nội dung đang soạn thành file mới, bấm vào tên file ở góc trên bên trái để **đổi tên**, hoặc dùng nút **Clear** trên thanh công cụ để xoá sạch và bắt đầu lại từ đầu.
-
----
-
-## Phần 2 — Các chức năng & ví dụ
-
-### In đậm, in nghiêng, gạch ngang
-Cú pháp: \`**đậm**\`, \`*nghiêng*\`, \`~~gạch ngang~~\`
-
-Ví dụ: đây là chữ **in đậm**, đây là chữ *in nghiêng*, và đây là ~~chữ bị gạch ngang~~.
-
-### Tiêu đề (Heading)
-Đặt nút **H** trên thanh công cụ ở đầu dòng bất kỳ để biến nó thành tiêu đề \`## \`.
-
-### Trích dẫn (Quote)
-Cú pháp: thêm \`> \` vào đầu dòng.
-
-> Đây là một đoạn trích dẫn — thường dùng để nhấn mạnh 1 câu nói hoặc ghi chú quan trọng.
-
-### Code — inline và block
-Inline: dùng dấu backtick đơn, ví dụ biến \`total_cost\` trong đoạn văn.
-
-Code block: dùng 3 dấu backtick, có thể ghi kèm tên ngôn ngữ để tô màu cú pháp.
-
-\`\`\`python
-def hello():
-    print("Hello AWS!")
-\`\`\`
-
-### Danh sách gạch đầu dòng (Bullet list)
-- AWS Budgets — cảnh báo ngân sách
-- Cost Explorer — phân tích chi phí
-- Trusted Advisor — kiểm tra tối ưu chi phí
-
-### Danh sách đánh số (Ordered list)
-Bấm nút **1.** trên thanh công cụ khi con trỏ ở dòng trống sẽ tự chèn số. Nhấn **Enter** ở cuối dòng sẽ tự động sinh số tiếp theo:
-
-1. Tạo Pricing Calculator để ước tính chi phí
-2. Theo dõi bằng AWS Budgets
-3. Phân tích lại bằng Cost Explorer sau khi dùng
-
-### Checklist (việc cần làm)
-- [x] Thiết kế giao diện editor
-- [x] Thêm chức năng Import / Export
-- [ ] Viết thêm test case cho Undo/Redo
-
-### Liên kết & hình ảnh
-Liên kết: \`[chữ hiển thị](URL)\` → [Tài liệu AWS chính thức](https://aws.amazon.com)
-
-Hình ảnh dùng cú pháp tương tự nhưng thêm dấu \`!\` ở đầu: \`![mô tả](URL ảnh)\`
-
-### Bảng (Table)
-Bấm nút bảng trên thanh công cụ để chèn khung mẫu, sau đó chỉnh nội dung từng ô:
-
-| Dịch vụ | Mục đích |
-|---|---|
-| Cost Explorer | Phân tích chi phí |
-| Budgets | Cảnh báo ngân sách |
-
-### Đường kẻ ngang & Ghi chú
-Đường kẻ ngang dùng để tách các phần nội dung:
-
----
-
-Ghi chú dạng comment (không hiển thị ở bản xem trước): <!-- đây là ghi chú riêng, chỉ thấy trong phần Markdown -->
-`;
-
-// ---- Render ----
-function render() {
-  previewContent.innerHTML = marked.parse(editor.value);
-}
-
-// Debounce nhẹ để không render lại quá dày khi gõ nhanh
-let renderTimer = null;
-function scheduleRender() {
-  statusText.textContent = 'Đang gõ...';
-  clearTimeout(renderTimer);
-  renderTimer = setTimeout(() => {
-    render();
-    statusText.textContent = 'Đã cập nhật';
-  }, 150);
-}
-
-editor.addEventListener('input', scheduleRender);
-
-// Khởi tạo nội dung mặc định
-editor.value = defaultContent;
-render();
-statusText.textContent = 'Đã cập nhật';
-
-// ---- Chế độ hiển thị: Edit / Split / Preview ----
-const btnEdit = document.getElementById('btnEdit');
-const btnSplit = document.getElementById('btnSplit');
-const btnPreview = document.getElementById('btnPreview');
-
-function setMode(mode) {
-  frame.classList.remove('mode-edit', 'mode-split', 'mode-preview');
-  frame.classList.add('mode-' + mode);
-  [btnEdit, btnSplit, btnPreview].forEach(b => b.classList.remove('active'));
-  if (mode === 'edit') btnEdit.classList.add('active');
-  if (mode === 'split') btnSplit.classList.add('active');
-  if (mode === 'preview') { btnPreview.classList.add('active'); render(); }
-}
-btnEdit.addEventListener('click', () => setMode('edit'));
-btnSplit.addEventListener('click', () => setMode('split'));
-btnPreview.addEventListener('click', () => setMode('preview'));
-
-// ---- Import file ----
-const fileInput = document.getElementById('fileInput');
-const btnImport = document.getElementById('btnImport');
-const dropzone = document.getElementById('dropzone');
-
-function loadMarkdownFile(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    editor.value = e.target.result;
-    fileNameText.textContent = file.name;
-    render();
-    statusText.textContent = 'Đã nhập file';
-  };
-  reader.onerror = () => alert('Không đọc được file. Vui lòng dùng file .md hoặc .txt.');
-  reader.readAsText(file, 'UTF-8');
-}
-btnImport.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', (e) => {
-  loadMarkdownFile(e.target.files[0]);
-  fileInput.value = '';
-});
-
-// Kéo & thả
-['dragenter', 'dragover'].forEach(evt => {
-  frame.addEventListener(evt, (e) => { e.preventDefault(); frame.classList.add('dragging'); });
-});
-['dragleave', 'drop'].forEach(evt => {
-  frame.addEventListener(evt, (e) => { e.preventDefault(); frame.classList.remove('dragging'); });
-});
-frame.addEventListener('drop', (e) => loadMarkdownFile(e.dataTransfer.files[0]));
-
-// ---- Toolbar: chèn / bọc cú pháp markdown tại vị trí con trỏ ----
-
-// Bọc selection bằng syntax (vd: **text**). Nếu chưa chọn gì, chèn placeholder và bôi đen nó.
-function wrapSelection(before, after, placeholder) {
-  const start = editor.selectionStart;
-  const end = editor.selectionEnd;
-  const selected = editor.value.slice(start, end) || placeholder;
-  const newText = before + selected + after;
-  editor.setRangeText(newText, start, end, 'select');
-  // Nếu không có selection ban đầu, bôi đen phần placeholder để gõ đè lên ngay
-  if (start === end) {
-    editor.selectionStart = start + before.length;
-    editor.selectionEnd = start + before.length + placeholder.length;
-  }
-  editor.focus();
-  scheduleRender();
-}
-
-// Thêm prefix vào đầu mỗi dòng đang được chọn (vd: "> ", "- ", "1. ")
-function prefixLines(prefixFn) {
-  const start = editor.selectionStart;
-  const end = editor.selectionEnd;
-  const value = editor.value;
-  let lineStart = value.lastIndexOf('\n', start - 1) + 1;
-  let lineEnd = value.indexOf('\n', end);
-  if (lineEnd === -1) lineEnd = value.length;
-
-  const block = value.slice(lineStart, lineEnd);
-  const lines = block.split('\n');
-  const newBlock = lines.map((line, i) => prefixFn(line, i)).join('\n');
-
-  editor.setRangeText(newBlock, lineStart, lineEnd, 'select');
-  editor.focus();
-  scheduleRender();
-}
-
-// Chèn text tại vị trí con trỏ (không bọc)
-function insertAtCursor(text, cursorOffset) {
-  const start = editor.selectionStart;
-  editor.setRangeText(text, start, editor.selectionEnd, 'end');
-  if (cursorOffset !== undefined) {
-    editor.selectionStart = editor.selectionEnd = start + cursorOffset;
-  }
-  editor.focus();
-  scheduleRender();
-}
-
-// Bóc marker danh sách cũ (nếu có) khỏi 1 dòng, giữ lại phần thụt đầu dòng (indent) và nội dung thật.
-function stripListMarker(line) {
-  const m = line.match(/^(\s*)(?:[-*]\s+(?:\[[ xX]\]\s+)?|\d+\.\s+)?(.*)$/);
-  return { indent: m[1], content: m[2] };
-}
-
-// Áp dụng / gỡ định dạng danh sách (ul, ol, task) theo đúng kiểu HackMD:
-// - Nếu dòng đang trống (chưa gõ gì) -> LUÔN chèn marker mới để gõ tiếp (vd bấm Ordered list trên dòng trống -> ra "1. ")
-// - Nếu khối dòng đang chọn ĐÃ là đúng loại marker này -> bấm lại sẽ GỠ marker (toggle off)
-// - Ngược lại -> gắn/marker lại theo loại mới, đánh số liên tục bỏ qua dòng trống
-function applyListFormat(markerType) {
-  const start = editor.selectionStart;
-  const end = editor.selectionEnd;
-  const value = editor.value;
-  let lineStart = value.lastIndexOf('\n', start - 1) + 1;
-  let lineEnd = value.indexOf('\n', end);
-  if (lineEnd === -1) lineEnd = value.length;
-
-  const block = value.slice(lineStart, lineEnd);
-  const lines = block.split('\n');
-  const contentLines = lines.filter(l => l.trim() !== '');
-
-  const testers = {
-    ol: l => /^\s*\d+\.\s+/.test(l),
-    ul: l => /^\s*[-*]\s+(?!\[[ xX]\])/.test(l),
-    task: l => /^\s*[-*]\s+\[[ xX]\]\s+/.test(l),
-  };
-  // Đang bật = TẤT CẢ các dòng có nội dung trong khối đều đã đúng loại marker này
-  const isActive = contentLines.length > 0 && contentLines.every(testers[markerType]);
-
-  const markerOf = {
-    ol: (n) => n + '. ',
-    ul: () => '- ',
-    task: () => '- [ ] ',
-  };
-
-  let n = 0;
-  let caretOffsetInBlock = null; // vị trí đặt con trỏ sau khi chèn marker vào dòng trống đơn lẻ
-
-  const newLines = lines.map((line, idx) => {
-    if (!line.trim()) {
-      // Dòng trống: nếu đây là dòng trống DUY NHẤT đang thao tác (không có dòng nào khác được chọn)
-      // -> vẫn chèn marker để người dùng gõ tiếp ngay, giống HackMD
-      if (lines.length === 1 && !isActive) {
-        n++;
-        const marker = markerOf[markerType](n);
-        caretOffsetInBlock = marker.length;
-        return marker;
-      }
-      return line; // dòng trống nằm giữa nhiều dòng khác -> giữ nguyên
-    }
-    if (isActive) {
-      const { content } = stripListMarker(line); // TOGGLE OFF: gỡ marker
-      return content;
-    }
-    n++;
-    const { indent, content } = stripListMarker(line); // TOGGLE ON: gắn marker mới
-    return indent + markerOf[markerType](n) + content;
-  });
-
-  const newBlock = newLines.join('\n');
-  editor.setRangeText(newBlock, lineStart, lineEnd, 'select');
-  if (caretOffsetInBlock !== null) {
-    editor.selectionStart = editor.selectionEnd = lineStart + caretOffsetInBlock;
-  }
-  editor.focus();
-  scheduleRender();
-}
-
-const toolbarActions = {
-  undo: () => { document.execCommand('undo'); scheduleRender(); },
-  redo: () => { document.execCommand('redo'); scheduleRender(); },
-  bold: () => wrapSelection('**', '**', 'in đậm'),
-  italic: () => wrapSelection('*', '*', 'in nghiêng'),
-  strike: () => wrapSelection('~~', '~~', 'gạch ngang'),
-  heading: () => prefixLines(line => '## ' + line.replace(/^#{1,6}\s*/, '')),
-  code: () => {
-    const hasSelection = editor.selectionStart !== editor.selectionEnd;
-    const selected = editor.value.slice(editor.selectionStart, editor.selectionEnd);
-    if (!hasSelection || selected.includes('\n')) {
-      // Không chọn gì, hoặc chọn nhiều dòng -> dùng code block (```)
-      wrapSelection('```\n', '\n```', 'code');
-    } else {
-      // Chọn 1 đoạn text trên 1 dòng -> dùng inline code (`)
-      wrapSelection('`', '`', 'code');
-    }
-  },
-  quote: () => prefixLines(line => '> ' + line),
-  ul: () => applyListFormat('ul'),
-  ol: () => applyListFormat('ol'),
-  task: () => applyListFormat('task'),
-  link: () => wrapSelection('[', '](https://)', 'nội dung liên kết'),
-  image: () => insertAtCursor('![mô tả ảnh](https://)', 2),
-  table: () => insertAtCursor(
-'\n| Cột 1 | Cột 2 | Cột 3 |\n|---|---|---|\n| ô 1 | ô 2 | ô 3 |\n| ô 4 | ô 5 | ô 6 |\n'
-  ),
-  hr: () => insertAtCursor('\n\n---\n\n'),
-  comment: () => wrapSelection('<!-- ', ' -->', 'ghi chú'),
-};
-
-document.getElementById('toolbar').addEventListener('click', (e) => {
-  const btn = e.target.closest('.tb-btn');
-  if (!btn) return;
-  const action = toolbarActions[btn.dataset.action];
-  if (action) action();
-});
-
-// Phím tắt nhanh cho Bold / Italic (giống HackMD)
-editor.addEventListener('keydown', (e) => {
-  if (e.ctrlKey || e.metaKey) {
-    if (e.key === 'b') { e.preventDefault(); toolbarActions.bold(); }
-    if (e.key === 'i') { e.preventDefault(); toolbarActions.italic(); }
-    return;
-  }
-  if (e.key === 'Enter') handleEnterKey(e);
-});
-
-// Nhấn Enter trong 1 dòng list -> tự tiếp tục list (số tăng dần / cùng dấu gạch đầu dòng),
-// giống HackMD. Nhấn Enter trên 1 dòng list đang trống (mới gõ marker chưa có nội dung) -> thoát khỏi list.
-function handleEnterKey(e) {
-  const pos = editor.selectionStart;
-  if (pos !== editor.selectionEnd) return; // có bôi đen -> để trình duyệt xử lý bình thường
-  const value = editor.value;
-  const lineStart = value.lastIndexOf('\n', pos - 1) + 1;
-  const currentLine = value.slice(lineStart, pos);
-
-  // Ordered list: "  3. nội dung"
-  const olMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
-  if (olMatch) {
-    e.preventDefault();
-    const [, indent, numStr, content] = olMatch;
-    if (content.trim() === '') {
-      // Dòng list trống -> Enter để thoát khỏi list: xoá marker, xuống dòng trắng
-      const lineEndIdx = value.indexOf('\n', pos);
-      const realLineEnd = lineEndIdx === -1 ? value.length : lineEndIdx;
-      editor.setRangeText('', lineStart, realLineEnd, 'end');
-      scheduleRender();
-      return;
-    }
-    const nextNum = parseInt(numStr, 10) + 1;
-    insertAtCursor('\n' + indent + nextNum + '. ');
-    return;
-  }
-
-  // Bullet list / Checklist: "  - nội dung" hoặc "  - [ ] nội dung"
-  const ulMatch = currentLine.match(/^(\s*)([-*])\s+(?:(\[[ xX]\])\s+)?(.*)$/);
-  if (ulMatch) {
-    e.preventDefault();
-    const [, indent, bullet, checkbox, content] = ulMatch;
-    if (content.trim() === '') {
-      const lineEndIdx = value.indexOf('\n', pos);
-      const realLineEnd = lineEndIdx === -1 ? value.length : lineEndIdx;
-      editor.setRangeText('', lineStart, realLineEnd, 'end');
-      scheduleRender();
-      return;
-    }
-    const marker = indent + bullet + ' ' + (checkbox ? '[ ] ' : '');
-    insertAtCursor('\n' + marker);
-    return;
-  }
-}
-
-// ---- Đổi tên file: bấm vào tên -> chuyển thành ô input để sửa ----
-const fileNameInput = document.getElementById('fileNameInput');
-
-function startRenameFile() {
-  fileNameInput.value = fileNameText.textContent;
-  fileNameText.style.display = 'none';
-  fileNameInput.style.display = 'inline-block';
-  fileNameInput.focus();
-  fileNameInput.select();
-}
-function commitRenameFile() {
-  const newName = fileNameInput.value.trim();
-  if (newName) fileNameText.textContent = newName;
-  fileNameInput.style.display = 'none';
-  fileNameText.style.display = '';
-}
-fileNameText.addEventListener('click', startRenameFile);
-fileNameText.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startRenameFile(); }
-});
-fileNameInput.addEventListener('blur', commitRenameFile);
-fileNameInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { e.preventDefault(); fileNameInput.blur(); }
-  if (e.key === 'Escape') { fileNameInput.value = fileNameText.textContent; fileNameInput.blur(); }
-});
-
-// ---- Clear: xoá toàn bộ nội dung, có hộp thoại xác nhận trước khi xoá ----
-const clearModal = document.getElementById('clearModal');
-document.getElementById('btnClear').addEventListener('click', () => {
-  clearModal.classList.add('show');
-});
-document.getElementById('clearCancel').addEventListener('click', () => {
-  clearModal.classList.remove('show');
-});
-document.getElementById('clearConfirm').addEventListener('click', () => {
-  editor.value = '';
-  render();
-  statusText.textContent = 'Đã xoá toàn bộ';
-  clearModal.classList.remove('show');
-  editor.focus();
-});
-// Bấm ra ngoài hộp thoại hoặc nhấn Esc -> huỷ, không xoá
-clearModal.addEventListener('click', (e) => {
-  if (e.target === clearModal) clearModal.classList.remove('show');
-});
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && clearModal.classList.contains('show')) {
-    clearModal.classList.remove('show');
-  }
-});
-
-// ---- Export / Tải xuống ----
-document.getElementById('btnExport').addEventListener('click', () => {
-  const blob = new Blob([editor.value], { type: 'text/markdown;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileNameText.textContent.endsWith('.md') ? fileNameText.textContent : fileNameText.textContent + '.md';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
-</script>
+<script src="script.js"></script>
 
 </body>
 </html>

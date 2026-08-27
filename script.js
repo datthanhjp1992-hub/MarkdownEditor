@@ -7,6 +7,71 @@ const lineNumbersInner = document.getElementById('lineNumbersInner');
 const cursorStatusEl = document.getElementById('cursorStatus');
 const docStatsEl = document.getElementById('docStats');
 
+// ---- Bộ gõ tiếng Việt TELEX ----
+const VN_MODE_KEY = 'settings:vnMode';
+let vnEngine = null;
+let vnEnabled = false; // mặc định tắt
+
+// Mọi thao tác sửa nội dung KHÔNG do người dùng gõ trực tiếp (toolbar, import,
+// clear, tự chèn marker list...) đều làm buffer của bộ gõ lệch với textarea.
+// Gọi hàm này ngay sau các thao tác đó để buffer được nạp lại ở lần gõ kế tiếp.
+function markVnDirty() {
+  if (vnEngine) vnEngine.markDirty();
+}
+
+function setVnMode(on) {
+  vnEnabled = !!on;
+  if (vnEngine) vnEngine.setEnabled(vnEnabled);
+  const btn = document.getElementById('btnVnToggle');
+  const label = document.getElementById('vnToggleLabel');
+  if (btn) btn.classList.toggle('active', vnEnabled);
+  if (label) label.textContent = vnEnabled ? 'VN' : 'EN';
+  try {
+    localStorage.setItem(VN_MODE_KEY, vnEnabled ? '1' : '0');
+  } catch (err) {
+    // Trình duyệt chặn localStorage -> chỉ mất việc nhớ trạng thái, không ảnh hưởng gõ
+  }
+}
+
+function initVietnameseEngine() {
+  const btn = document.getElementById('btnVnToggle');
+  const label = document.getElementById('vnToggleLabel');
+
+  if (typeof UkEngine === 'undefined') {
+    console.warn('Không tải được ukengine.js — bộ gõ tiếng Việt bị tắt.');
+    if (btn) {
+      btn.disabled = true;
+      btn.title = 'Không tải được ukengine.js — kiểm tra lại file có nằm cùng thư mục không';
+    }
+    if (label) label.textContent = 'EN';
+    return;
+  }
+
+  vnEngine = new UkEngine({
+    method: UkEngine.TELEX,
+    // Tắt phím tắt [ ] { } của TELEX: trong Markdown chúng là cú pháp thật
+    // ([link](url), - [ ] checklist), không được biến thành ơ/ư.
+    bracketShortcuts: false,
+  });
+  UkEngine.attach(editor, vnEngine);
+
+  let saved = '0';
+  try {
+    saved = localStorage.getItem(VN_MODE_KEY) || '0';
+  } catch (err) {
+    saved = '0';
+  }
+  setVnMode(saved === '1');
+
+  if (btn) {
+    btn.addEventListener('click', () => {
+      setVnMode(!vnEnabled);
+      editor.focus();
+      flashStatus(vnEnabled ? 'Đã bật gõ tiếng Việt (TELEX)' : 'Đã tắt gõ tiếng Việt');
+    });
+  }
+}
+
 // Bật breaks:true để giống HackMD -- 1 dấu xuống dòng đơn trong đoạn văn/list item
 // sẽ giữ nguyên thành <br> thay vì bị CommonMark mặc định gộp lại thành khoảng trắng.
 marked.setOptions({ breaks: true });
@@ -209,6 +274,7 @@ async function initEditor() {
   statusText.textContent = restored ? 'Đã khôi phục bản nháp' : 'Đã cập nhật';
 }
 initEditor();
+initVietnameseEngine();
 
 // ---- Chế độ hiển thị: Edit / Split / Preview ----
 const btnEdit = document.getElementById('btnEdit');
@@ -243,16 +309,22 @@ function loadMarkdownFile(file) {
     render();
     updateDocStats();
     scheduleAutosave();
+    markVnDirty();
     statusText.textContent = 'Đã nhập file';
   };
   reader.onerror = () => alert('Không đọc được file. Vui lòng dùng file .md hoặc .txt.');
   reader.readAsText(file, 'UTF-8');
 }
-btnImport.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', (e) => {
-  loadMarkdownFile(e.target.files[0]);
-  fileInput.value = '';
-});
+
+if (btnImport && fileInput) {
+  btnImport.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    loadMarkdownFile(e.target.files[0]);
+    fileInput.value = '';
+  });
+} else {
+  console.warn('Không tìm thấy nút Import hoặc input file');
+}
 
 // Kéo & thả
 ['dragenter', 'dragover'].forEach(evt => {
@@ -277,6 +349,7 @@ function wrapSelection(before, after, placeholder) {
     editor.selectionStart = start + before.length;
     editor.selectionEnd = start + before.length + placeholder.length;
   }
+  markVnDirty();
   editor.focus();
   scheduleRender();
 }
@@ -295,6 +368,7 @@ function prefixLines(prefixFn) {
   const newBlock = lines.map((line, i) => prefixFn(line, i)).join('\n');
 
   editor.setRangeText(newBlock, lineStart, lineEnd, 'select');
+  markVnDirty();
   editor.focus();
   scheduleRender();
 }
@@ -306,6 +380,7 @@ function insertAtCursor(text, cursorOffset) {
   if (cursorOffset !== undefined) {
     editor.selectionStart = editor.selectionEnd = start + cursorOffset;
   }
+  markVnDirty();
   editor.focus();
   scheduleRender();
 }
@@ -375,13 +450,14 @@ function applyListFormat(markerType) {
   if (caretOffsetInBlock !== null) {
     editor.selectionStart = editor.selectionEnd = lineStart + caretOffsetInBlock;
   }
+  markVnDirty();
   editor.focus();
   scheduleRender();
 }
 
 const toolbarActions = {
-  undo: () => { document.execCommand('undo'); scheduleRender(); },
-  redo: () => { document.execCommand('redo'); scheduleRender(); },
+  undo: () => { document.execCommand('undo'); markVnDirty(); scheduleRender(); },
+  redo: () => { document.execCommand('redo'); markVnDirty(); scheduleRender(); },
   bold: () => wrapSelection('**', '**', 'in đậm'),
   italic: () => wrapSelection('*', '*', 'in nghiêng'),
   strike: () => wrapSelection('~~', '~~', 'gạch ngang'),
@@ -446,6 +522,7 @@ function handleEnterKey(e) {
       const lineEndIdx = value.indexOf('\n', pos);
       const realLineEnd = lineEndIdx === -1 ? value.length : lineEndIdx;
       editor.setRangeText('', lineStart, realLineEnd, 'end');
+      markVnDirty();
       scheduleRender();
       return;
     }
@@ -463,6 +540,7 @@ function handleEnterKey(e) {
       const lineEndIdx = value.indexOf('\n', pos);
       const realLineEnd = lineEndIdx === -1 ? value.length : lineEndIdx;
       editor.setRangeText('', lineStart, realLineEnd, 'end');
+      markVnDirty();
       scheduleRender();
       return;
     }
@@ -501,23 +579,33 @@ fileNameInput.addEventListener('keydown', (e) => {
 
 // ---- Clear: xoá toàn bộ nội dung, có hộp thoại xác nhận trước khi xoá ----
 const clearModal = document.getElementById('clearModal');
-document.getElementById('btnClear').addEventListener('click', () => {
-  clearModal.classList.add('show');
-});
-document.getElementById('clearCancel').addEventListener('click', () => {
-  clearModal.classList.remove('show');
-});
-document.getElementById('clearConfirm').addEventListener('click', () => {
-  editor.value = '';
-  updateLineNumbers();
-  updateCursorStatus();
-  render();
-  updateDocStats();
-  scheduleAutosave();
-  statusText.textContent = 'Đã xoá toàn bộ';
-  clearModal.classList.remove('show');
-  editor.focus();
-});
+const btnClear = document.getElementById('btnClear');
+if (btnClear) {
+  btnClear.addEventListener('click', () => {
+    clearModal.classList.add('show');
+  });
+}
+const clearCancel = document.getElementById('clearCancel');
+const clearConfirm = document.getElementById('clearConfirm');
+if (clearCancel) {
+  clearCancel.addEventListener('click', () => {
+    clearModal.classList.remove('show');
+  });
+}
+if (clearConfirm) {
+  clearConfirm.addEventListener('click', () => {
+    editor.value = '';
+    updateLineNumbers();
+    updateCursorStatus();
+    render();
+    updateDocStats();
+    scheduleAutosave();
+    markVnDirty();
+    statusText.textContent = 'Đã xoá toàn bộ';
+    clearModal.classList.remove('show');
+    editor.focus();
+  });
+}
 // Bấm ra ngoài hộp thoại hoặc nhấn Esc -> huỷ, không xoá
 clearModal.addEventListener('click', (e) => {
   if (e.target === clearModal) clearModal.classList.remove('show');
@@ -693,11 +781,17 @@ function loadSettings() {
 }
 loadSettings();
 
-btnSettings.addEventListener('click', () => settingsModal.classList.add('show'));
-settingsClose.addEventListener('click', () => settingsModal.classList.remove('show'));
-settingsModal.addEventListener('click', (e) => {
-  if (e.target === settingsModal) settingsModal.classList.remove('show');
-});
+if (btnSettings) {
+  btnSettings.addEventListener('click', () => settingsModal.classList.add('show'));
+}
+if (settingsClose) {
+  settingsClose.addEventListener('click', () => settingsModal.classList.remove('show'));
+}
+if (settingsModal) {
+  settingsModal.addEventListener('click', (e) => {
+    if (e.target === settingsModal) settingsModal.classList.remove('show');
+  });
+}
 
 themeOptions.forEach(btn => {
   btn.addEventListener('click', () => {
@@ -757,6 +851,7 @@ function setupDropdown(rootId, toggleId, menuId) {
   const root = document.getElementById(rootId);
   const toggle = document.getElementById(toggleId);
   const menu = document.getElementById(menuId);
+  if (!root || !toggle || !menu) return;
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
     const willShow = !menu.classList.contains('show');
@@ -784,33 +879,38 @@ function flashStatus(message) {
 }
 
 // ---- Copy Markdown / Copy HTML vào clipboard ----
-document.getElementById('copyMarkdownBtn').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(editor.value);
-    flashStatus('Đã copy Markdown');
-  } catch (err) {
-    flashStatus('Không copy được — trình duyệt chặn clipboard');
-  }
-});
-
-document.getElementById('copyHtmlBtn').addEventListener('click', async () => {
-  const htmlString = previewContent.innerHTML;
-  try {
-    if (window.ClipboardItem) {
-      // Copy cả HTML (để dán có định dạng vào Notion/Confluence/Word) lẫn text thường (để dán vào nơi không hỗ trợ HTML)
-      const item = new ClipboardItem({
-        'text/html': new Blob([htmlString], { type: 'text/html' }),
-        'text/plain': new Blob([previewContent.innerText], { type: 'text/plain' }),
-      });
-      await navigator.clipboard.write([item]);
-    } else {
-      await navigator.clipboard.writeText(htmlString);
+const copyMarkdownBtn = document.getElementById('copyMarkdownBtn');
+const copyHtmlBtn = document.getElementById('copyHtmlBtn');
+if (copyMarkdownBtn) {
+  copyMarkdownBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(editor.value);
+      flashStatus('Đã copy Markdown');
+    } catch (err) {
+      flashStatus('Không copy được — trình duyệt chặn clipboard');
     }
-    flashStatus('Đã copy HTML');
-  } catch (err) {
-    flashStatus('Không copy được — trình duyệt chặn clipboard');
-  }
-});
+  });
+}
+if (copyHtmlBtn) {
+  copyHtmlBtn.addEventListener('click', async () => {
+    const htmlString = previewContent.innerHTML;
+    try {
+      if (window.ClipboardItem) {
+        // Copy cả HTML (để dán có định dạng vào Notion/Confluence/Word) lẫn text thường (để dán vào nơi không hỗ trợ HTML)
+        const item = new ClipboardItem({
+          'text/html': new Blob([htmlString], { type: 'text/html' }),
+          'text/plain': new Blob([previewContent.innerText], { type: 'text/plain' }),
+        });
+        await navigator.clipboard.write([item]);
+      } else {
+        await navigator.clipboard.writeText(htmlString);
+      }
+      flashStatus('Đã copy HTML');
+    } catch (err) {
+      flashStatus('Không copy được — trình duyệt chặn clipboard');
+    }
+  });
+}
 
 // ---- Tải xuống: Markdown (.md) / HTML (.html) / PDF (qua hộp thoại in) ----
 function escapeHtml(str) {
@@ -862,27 +962,34 @@ ${previewContent.innerHTML}
 </html>`;
 }
 
-document.getElementById('exportMdBtn').addEventListener('click', () => {
-  const filename = fileNameText.textContent.endsWith('.md') ? fileNameText.textContent : fileNameText.textContent + '.md';
-  downloadBlob(editor.value, 'text/markdown;charset=utf-8', filename);
-});
-
-document.getElementById('exportHtmlBtn').addEventListener('click', () => {
-  downloadBlob(buildStandaloneHtml(), 'text/html;charset=utf-8', getBaseFileName() + '.html');
-});
-
-document.getElementById('exportPdfBtn').addEventListener('click', () => {
-  const printWin = window.open('', '_blank');
-  if (!printWin) {
-    alert('Trình duyệt đã chặn cửa sổ pop-up. Vui lòng cho phép pop-up cho trang này để xuất PDF.');
-    return;
-  }
-  printWin.document.open();
-  printWin.document.write(buildStandaloneHtml());
-  printWin.document.close();
-  // Đợi nội dung/ảnh load xong rồi mới mở hộp thoại in -> trong hộp thoại chọn "Save as PDF" để lưu file
-  printWin.onload = () => {
-    printWin.focus();
-    printWin.print();
-  };
-});
+const exportMdBtn = document.getElementById('exportMdBtn');
+const exportHtmlBtn = document.getElementById('exportHtmlBtn');
+const exportPdfBtn = document.getElementById('exportPdfBtn');
+if (exportMdBtn) {
+  exportMdBtn.addEventListener('click', () => {
+    const filename = fileNameText.textContent.endsWith('.md') ? fileNameText.textContent : fileNameText.textContent + '.md';
+    downloadBlob(editor.value, 'text/markdown;charset=utf-8', filename);
+  });
+}
+if (exportHtmlBtn) {
+  exportHtmlBtn.addEventListener('click', () => {
+    downloadBlob(buildStandaloneHtml(), 'text/html;charset=utf-8', getBaseFileName() + '.html');
+  });
+}
+if (exportPdfBtn) {
+  exportPdfBtn.addEventListener('click', () => {
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      alert('Trình duyệt đã chặn cửa sổ pop-up. Vui lòng cho phép pop-up cho trang này để xuất PDF.');
+      return;
+    }
+    printWin.document.open();
+    printWin.document.write(buildStandaloneHtml());
+    printWin.document.close();
+    // Đợi nội dung/ảnh load xong rồi mới mở hộp thoại in -> trong hộp thoại chọn "Save as PDF" để lưu file
+    printWin.onload = () => {
+      printWin.focus();
+      printWin.print();
+    };
+  });
+}
